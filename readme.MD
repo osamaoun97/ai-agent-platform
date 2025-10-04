@@ -60,14 +60,14 @@ A Postman collection is available in the "Agent Platform Complete API" json file
 ### Local Development Setup
 1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd agent_platform_project
+git clone https://github.com/osamaoun97/ai-agent-platform.git
+cd ai-agent-platform
 ```
 
 2. Create and activate virtual environment:
 ```bash
-conda create -n api_core python=3.12
-conda activate api_core
+conda create -n agent_platform python=3.12
+conda activate agent_platform
 ```
 
 3. Install dependencies:
