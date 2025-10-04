@@ -5,15 +5,20 @@ This is a Django-based agent platform that provides a comprehensive API for mana
 
 ## Project Structure
 ```
-├── api_core/          # Django project core
-├── app/                 # Main application
+├── api_core/            # Django project core (settings, urls, wsgi, asgi)
+├── app/                 # Main Django application
 │   ├── models/             # Database models
 │   ├── serializers/        # API serializers
 │   ├── services/           # Business logic
 │   ├── views/              # API endpoints
-│   └── tests/              # Test cases
-├── config/  # Config management
-└── deployment/             # Deployment files
+│   ├── tests/              # Test cases
+│   └── migrations/         # Django migrations
+├── config/                          # Config management
+├── deployment/                      # Deployment files (Docker, entrypoints)
+├── manage.py                        # Django management script
+├── requirements.txt                 # Python dependencies
+├── readme.MD                        # Project documentation
+└── Agent Platform Complete API.json # Postman collection
 ```
 
 ## Frontend Overview
