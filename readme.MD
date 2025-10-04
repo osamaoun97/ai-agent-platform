@@ -22,9 +22,9 @@ This is a Django-based agent platform that provides a comprehensive API for mana
 ## API Documentation
 The project uses drf-yasg (Django REST Swagger Generator) for API documentation. After starting the server, you can access the API documentation through:
 
-- Swagger UI: http://localhost:8000/swagger/
-- ReDoc UI: http://localhost:8000/redoc/
-- Raw schema: http://localhost:8000/swagger.json or http://localhost:8000/swagger.yaml
+- Swagger UI: http://{{base_url}}/swagger/
+- ReDoc UI: http://{{base_url}}/redoc/
+- Raw schema: http://{{base_url}}/swagger.json or http://{{base_url}}/swagger.yaml
 
 The documentation provides detailed information about:
 - Available endpoints
