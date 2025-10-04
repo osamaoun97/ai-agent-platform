@@ -1,0 +1,106 @@
+# Agent Platform Project
+
+## Introduction
+This is a Django-based agent platform that provides a comprehensive API for managing AI agents, chat sessions, and message handling. The platform supports both text and voice interactions, with a modular architecture that allows for easy extension and customization.
+
+## Project Structure
+```
+├── api_core/          # Django project core
+├── app/                 # Main application
+│   ├── models/             # Database models
+│   ├── serializers/        # API serializers
+│   ├── services/           # Business logic
+│   ├── views/              # API endpoints
+│   └── tests/              # Test cases
+├── config/  # Config management
+└── deployment/             # Deployment files
+```
+## API Documentation
+The project uses drf-yasg (Django REST Swagger Generator) for API documentation. After starting the server, you can access the API documentation through:
+
+- Swagger UI: http://localhost:8000/swagger/
+- ReDoc UI: http://localhost:8000/redoc/
+- Raw schema: http://localhost:8000/swagger.json or http://localhost:8000/swagger.yaml
+
+The documentation provides detailed information about:
+- Available endpoints
+- Request/response schemas
+- Authentication methods
+- API operations
+
+## Postman Collection
+A Postman collection is available in the "Agent Platform Complete API" json file. You can import this file into Postman to test the API endpoints directly.
+
+## Database Models
+
+### Agent
+- Represents an AI agent in the system
+- Stores agent configurations and properties
+
+### ChatSession
+- Manages chat sessions between users and agents
+- Tracks session state and metadata
+
+### Message
+- Stores communication history
+- Supports both text and voice messages
+
+## Setup Instructions
+
+### Prerequisites
+- Python 3.12+ (conda is preferred)
+- pip
+- PostgreSQL
+- Docker (optional for deployment only)
+
+### Local Development Setup
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd agent_platform_project
+```
+
+2. Create and activate virtual environment:
+```bash
+conda create -n api_core python=3.12
+conda activate api_core
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Configure environment variables:
+configure the `.env` file in the configuration manager with the required settings to connect to the db and openai, including:
+```
+OPENAI_API_KEY=your_openai_api_key
+```
+* Note: When using Docker, the database host should be db (service name in docker-compose) and localhost when working on local development.
+
+
+5. Run migrations:
+```bash
+python manage.py migrate
+```
+
+6. Start the development server on the required port (default is 8000):
+```bash
+python manage.py runserver <port>
+```
+
+### Docker Setup
+1. Build and run using docker-compose:
+```bash
+cd deployment
+docker-compose up --build
+```
+The API will be available at http://localhost:8000, to change the port, modify the `docker-compose.yml` file and entry point script.
+
+## Running Tests
+The project uses Django's test framework. To run tests:
+
+```bash
+# Run all tests
+python manage.py test
+```

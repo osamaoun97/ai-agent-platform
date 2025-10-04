@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent Platform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .message-enter { animation: slideIn 0.3s ease-out; }
+    .agent-item:hover { transform: translateX(4px); transition: transform 0.2s; }
+    .chat-bubble { transition: all 0.2s ease; }
+    .chat-bubble:hover { transform: scale(1.01); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  </style>
+</head>
+<body class="h-screen flex flex-col bg-gradient-to-br from-slate-50 to-blue-50">
+
+  <!-- Top Bar -->
+  <header class="bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-200 p-4 flex justify-between items-center">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold">AI</div>
+      <div>
+        <div class="text-lg font-bold text-gray-800" id="agentName">Select an Agent</div>
+        <div class="text-xs text-gray-500">AI Assistant Platform</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <select id="chatSelect" class="border border-gray-300 px-4 py-2 rounded-lg bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all">
+        <option>No chats available</option>
+      </select>
+      <button id="newChatBtn" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+        <span class="text-xl">+</span> New Chat
+      </button>
+    </div>
+  </header>
+
+  <div class="flex flex-1 overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-72 bg-white/90 backdrop-blur-sm border-r border-gray-200 p-5 flex flex-col shadow-lg">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold text-lg text-gray-800">My Agents</h2>
+        <span id="agentCount" class="bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-1 rounded-full">0</span>
+      </div>
+      <ul id="agentList" class="flex-1 space-y-2 overflow-y-auto pr-2"></ul>
+
+      <div class="mt-6 border-t border-gray-200 pt-5">
+        <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+          <span class="text-green-500">+</span> <span id="formTitle">Add New Agent</span>
+        </h3>
+        <input id="newAgentName" type="text" placeholder="Agent Name (e.g., Customer Support)" class="w-full border border-gray-300 px-3 py-2 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all">
+        <textarea id="newAgentPrompt" placeholder="Agent Prompt (e.g., You are a helpful customer support assistant...)" class="w-full border border-gray-300 px-3 py-2 rounded-lg mt-3 h-24 resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"></textarea>
+        <div class="flex gap-2 mt-3">
+          <button id="createAgentBtn" class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2 rounded-lg flex-1 font-medium shadow-md hover:shadow-lg transition-all">
+            Create Agent
+          </button>
+          <button id="cancelEditBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition-all hidden">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Chat Window -->
+    <main class="flex-1 flex flex-col bg-gradient-to-br from-gray-50 to-slate-50">
+      <!-- Empty State -->
+      <div id="emptyState" class="flex-1 flex items-center justify-center text-gray-400">
+        <div class="text-center">
+          <div class="text-6xl mb-4">💬</div>
+          <p class="text-xl font-medium">Select an agent to start chatting</p>
+          <p class="text-sm mt-2">Choose from the sidebar or create a new agent</p>
+        </div>
+      </div>
+
+      <!-- Chat Messages -->
+      <div id="chatWindow" class="flex-1 p-6 overflow-y-auto space-y-4 hidden"></div>
+
+      <!-- Message Input -->
+      <div id="inputSection" class="bg-white/80 backdrop-blur-md p-4 flex items-end gap-3 border-t border-gray-200 shadow-lg hidden">
+        <input id="messageInput" type="text" placeholder="Type your message..."
+               class="flex-1 border border-gray-300 px-4 py-3 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+               onkeypress="if(event.key==='Enter') document.getElementById('sendBtn').click()">
+        <button id="sendBtn" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-3 rounded-xl font-medium shadow-md hover:shadow-lg transition-all">
+          Send
+        </button>
+        <button id="voiceBtn" class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white w-12 h-12 rounded-full font-medium shadow-md hover:shadow-lg transition-all flex items-center justify-center text-xl">
+          🎤
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const apiBase = window.location.origin + "/api";
+    let currentAgent = null;
+    let currentSession = null;
+    let editingAgentId = null;
+
+    async function fetchAgents() {
+      try {
+        const res = await fetch(`${apiBase}/agents/`);
+        const agents = await res.json();
+        const list = document.getElementById("agentList");
+        const agentCount = document.getElementById("agentCount");
+
+        list.innerHTML = "";
+        agentCount.textContent = agents.length;
+
+        agents.forEach(agent => {
+          const li = document.createElement("li");
+          li.className = "agent-item flex justify-between items-center bg-gradient-to-r from-gray-50 to-gray-100 hover:from-blue-50 hover:to-blue-100 p-3 rounded-lg cursor-pointer border border-gray-200 hover:border-blue-300 transition-all";
+          li.innerHTML = `
+            <div class="flex items-center gap-3 flex-1">
+              <div class="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                ${agent.name.charAt(0).toUpperCase()}
+              </div>
+              <span class="font-medium text-gray-800">${agent.name}</span>
+            </div>
+            <button class="edit-btn text-sm text-blue-600 hover:text-blue-800 font-medium">Edit</button>
+          `;
+
+          li.addEventListener("click", (e) => {
+            if (!e.target.classList.contains('edit-btn')) {
+              selectAgent(agent);
+            }
+          });
+
+          li.querySelector('.edit-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            editAgent(agent);
+          });
+          list.appendChild(li);
+        });
+      } catch (error) {
+        console.error('Error fetching agents:', error);
+      }
+    }
+
+    async function selectAgent(agent) {
+      currentAgent = agent;
+      document.getElementById("agentName").innerHTML = `
+        <div class="text-lg font-bold text-gray-800">${agent.name}</div>
+      `;
+      document.getElementById("emptyState").classList.add("hidden");
+      document.getElementById("chatWindow").classList.remove("hidden");
+      document.getElementById("inputSection").classList.remove("hidden");
+      await fetchSessions(agent.id);
+    }
+
+    async function fetchSessions(agentId) {
+      try {
+        const res = await fetch(`${apiBase}/sessions/?agent=${agentId}`);
+        const sessions = await res.json();
+        const select = document.getElementById("chatSelect");
+
+        select.innerHTML = "";
+
+        if (sessions.length === 0) {
+          const opt = document.createElement("option");
+          opt.textContent = "No chats yet";
+          select.appendChild(opt);
+        } else {
+          sessions.forEach(session => {
+            const opt = document.createElement("option");
+            opt.value = session.id;
+            const createdDate = new Date(session.created_at);
+            const dateStr = createdDate.toLocaleDateString();
+            const timeStr = createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            opt.textContent = `Chat #${session.id} - ${dateStr} ${timeStr}`;
+            select.appendChild(opt);
+          });
+
+          // If no specific session is set, use the first one
+          if (!currentSession) {
+            currentSession = sessions[0].id;
+          }
+          select.value = currentSession;
+          loadMessages(currentSession);
+        }
+      } catch (error) {
+        console.error('Error fetching sessions:', error);
+      }
+    }
+
+    async function loadMessages(sessionId) {
+      try {
+        const res = await fetch(`${apiBase}/sessions/${sessionId}/messages/`);
+        const messages = await res.json();
+        const chat = document.getElementById("chatWindow");
+
+        chat.innerHTML = "";
+
+        messages.forEach(m => {
+          const div = document.createElement("div");
+          const isUser = m.role === "user";
+
+          div.className = `message-enter chat-bubble flex ${isUser ? 'justify-end' : 'justify-start'}`;
+          div.innerHTML = `
+            <div class="max-w-xl ${isUser ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' : 'bg-white border border-gray-200'} rounded-2xl px-4 py-3 shadow-sm">
+              <div class="${isUser ? 'text-white' : 'text-gray-800'}">${m.content}</div>
+              <div class="text-xs ${isUser ? 'text-blue-100' : 'text-gray-400'} mt-1">${new Date(m.created_at).toLocaleTimeString()}</div>
+            </div>
+          `;
+
+          chat.appendChild(div);
+        });
+
+        chat.scrollTop = chat.scrollHeight;
+      } catch (error) {
+        console.error('Error loading messages:', error);
+      }
+    }
+
+    async function sendMessage() {
+      const content = document.getElementById("messageInput").value.trim();
+      if (!currentSession || !content) return;
+
+      try {
+        const res = await fetch(`${apiBase}/sessions/send_message/`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ session_id: currentSession, content })
+        });
+
+        if (res.ok) {
+          await loadMessages(currentSession);
+          document.getElementById("messageInput").value = "";
+        }
+      } catch (error) {
+        console.error('Error sending message:', error);
+      }
+    }
+
+    async function createAgent() {
+      const name = document.getElementById("newAgentName").value.trim();
+      const prompt = document.getElementById("newAgentPrompt").value.trim();
+
+      if (!name || !prompt) {
+        alert('Please fill in both agent name and prompt');
+        return;
+      }
+
+      try {
+        if (editingAgentId) {
+          // Update existing agent
+          await fetch(`${apiBase}/agents/${editingAgentId}/`, {
+            method: "PUT",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ name, prompt })
+          });
+          editingAgentId = null;
+          document.getElementById("formTitle").textContent = "Add New Agent";
+          document.getElementById("createAgentBtn").textContent = "Create Agent";
+          document.getElementById("cancelEditBtn").classList.add("hidden");
+        } else {
+          // Create new agent
+          await fetch(`${apiBase}/agents/`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ name, prompt })
+          });
+        }
+
+        document.getElementById("newAgentName").value = "";
+        document.getElementById("newAgentPrompt").value = "";
+        fetchAgents();
+      } catch (error) {
+        console.error('Error creating/updating agent:', error);
+      }
+    }
+
+    function editAgent(agent) {
+      editingAgentId = agent.id;
+      document.getElementById("newAgentName").value = agent.name;
+      document.getElementById("newAgentPrompt").value = agent.prompt;
+      document.getElementById("formTitle").textContent = "Edit Agent";
+      document.getElementById("createAgentBtn").textContent = "Update Agent";
+      document.getElementById("cancelEditBtn").classList.remove("hidden");
+
+      // Scroll to form
+      document.getElementById("newAgentName").scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function cancelEdit() {
+      editingAgentId = null;
+      document.getElementById("newAgentName").value = "";
+      document.getElementById("newAgentPrompt").value = "";
+      document.getElementById("formTitle").textContent = "Add New Agent";
+      document.getElementById("createAgentBtn").textContent = "Create Agent";
+      document.getElementById("cancelEditBtn").classList.add("hidden");
+    }
+
+    // Event Listeners
+    document.getElementById("createAgentBtn").addEventListener("click", createAgent);
+    document.getElementById("cancelEditBtn").addEventListener("click", cancelEdit);
+    document.getElementById("sendBtn").addEventListener("click", sendMessage);
+    document.getElementById("chatSelect").addEventListener("change", e => {
+      currentSession = e.target.value;
+      if (currentSession !== "No chats yet") {
+        loadMessages(currentSession);
+      }
+    });
+
+    document.getElementById("newChatBtn").addEventListener("click", async () => {
+      if (!currentAgent) {
+        alert('Please select an agent first');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${apiBase}/sessions/`, {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ agent: currentAgent.id })
+        });
+
+        if (res.ok) {
+          const newSession = await res.json();
+          currentSession = newSession.id;
+          await fetchSessions(currentAgent.id);
+          // Clear the chat window for the new session
+          document.getElementById("chatWindow").innerHTML = "";
+        }
+      } catch (error) {
+        console.error('Error creating new chat:', error);
+      }
+    });
+
+    // Voice button placeholder
+    document.getElementById("voiceBtn").addEventListener("click", () => {
+      alert('Voice recording feature - to be implemented');
+    });
+
+    // Initial load
+    fetchAgents();
+  </script>
+</body>
+</html>
