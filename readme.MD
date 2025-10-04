@@ -15,6 +15,10 @@ This is a Django-based agent platform that provides a comprehensive API for mana
 ├── config/  # Config management
 └── deployment/             # Deployment files
 ```
+
+## Frontend Overview
+
+![img.png](app/static/img.png)
 ## API Documentation
 The project uses drf-yasg (Django REST Swagger Generator) for API documentation. After starting the server, you can access the API documentation through:
 
