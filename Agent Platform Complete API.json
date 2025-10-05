@@ -286,6 +286,41 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Send Voice Message",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "session_id",
+									"value": "1",
+									"type": "text"
+								},
+								{
+									"key": "audio_file",
+									"type": "file",
+									"src": "/C:/Users/y/Downloads/record.mp3"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/sessions/send_voice_message/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"sessions",
+								"send_voice_message",
+								""
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		}

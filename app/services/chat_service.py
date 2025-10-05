@@ -4,7 +4,6 @@ from langchain.schema import SystemMessage, HumanMessage, AIMessage
 from app.models.chatsession import ChatSession
 from app.models.message import Message
 from config.config_manager import ConfigManager
-from langchain_groq import ChatGroq
 
 config = ConfigManager()
 import os
@@ -12,16 +11,12 @@ import os
 if not os.environ.get("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = config.get("OPENAI_API_KEY")
 
-if not os.environ.get("GROQ_API_KEY"):
-    os.environ["GROQ_API_KEY"] = config.get("GROQ_API_KEY")
-
 class ChatService:
     def __init__(self):
-        self.llm = ChatGroq(model="openai/gpt-oss-20b",temperature=0)
-        # self.llm = ChatOpenAI(
-        #     model="gpt-4",
-        #     temperature=0.7,
-        # )
+        self.llm = ChatOpenAI(
+            model="gpt-4",
+            temperature=0.5,
+            )
 
     def get_session_context(self, session: ChatSession) -> List[Dict]:
         """

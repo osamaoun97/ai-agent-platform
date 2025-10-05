@@ -10,10 +10,15 @@
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
     .message-enter { animation: slideIn 0.3s ease-out; }
     .agent-item:hover { transform: translateX(4px); transition: transform 0.2s; }
     .chat-bubble { transition: all 0.2s ease; }
     .chat-bubble:hover { transform: scale(1.01); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .recording { animation: pulse 1s ease-in-out infinite; background: linear-gradient(135deg, #ef4444, #dc2626) !important; }
   </style>
 </head>
 <body class="h-screen flex flex-col bg-gradient-to-br from-slate-50 to-blue-50">
@@ -98,6 +103,11 @@
     let currentSession = null;
     let editingAgentId = null;
 
+    // Voice recording variables
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+
     async function fetchAgents() {
       try {
         const res = await fetch(`${apiBase}/agents/`);
@@ -172,7 +182,6 @@
             select.appendChild(opt);
           });
 
-          // If no specific session is set, use the first one
           if (!currentSession) {
             currentSession = sessions[0].id;
           }
@@ -213,6 +222,33 @@
       }
     }
 
+    function addVoiceMessageToChat(isUser, audioBlob = null) {
+      const chat = document.getElementById("chatWindow");
+      const div = document.createElement("div");
+
+      div.className = `message-enter chat-bubble flex ${isUser ? 'justify-end' : 'justify-start'}`;
+
+      const audioElement = audioBlob ? `
+        <audio controls class="mt-2 w-full">
+          <source src="${URL.createObjectURL(audioBlob)}" type="audio/mpeg">
+        </audio>
+      ` : '<div class="text-sm mt-2">🎵 Voice message</div>';
+
+      div.innerHTML = `
+        <div class="max-w-xl ${isUser ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' : 'bg-white border border-gray-200'} rounded-2xl px-4 py-3 shadow-sm">
+          <div class="${isUser ? 'text-white' : 'text-gray-800'} flex items-center gap-2">
+            <span class="text-xl">🎤</span>
+            <span>${isUser ? 'Voice Message Sent' : 'Agent Voice Response'}</span>
+          </div>
+          ${audioElement}
+          <div class="text-xs ${isUser ? 'text-blue-100' : 'text-gray-400'} mt-1">${new Date().toLocaleTimeString()}</div>
+        </div>
+      `;
+
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
     async function sendMessage() {
       const content = document.getElementById("messageInput").value.trim();
       if (!currentSession || !content) return;
@@ -233,6 +269,118 @@
       }
     }
 
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          await sendVoiceMessage(audioBlob);
+
+          // Stop all tracks
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+
+        const voiceBtn = document.getElementById("voiceBtn");
+        voiceBtn.classList.add('recording');
+        voiceBtn.innerHTML = '⏹️';
+
+      } catch (error) {
+        console.error('Error accessing microphone:', error);
+        alert('Could not access microphone. Please check permissions.');
+      }
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+
+        const voiceBtn = document.getElementById("voiceBtn");
+        voiceBtn.classList.remove('recording');
+        voiceBtn.innerHTML = '🎤';
+      }
+    }
+
+    async function sendVoiceMessage(audioBlob) {
+      if (!currentSession) {
+        alert('Please select a chat session first');
+        return;
+      }
+
+      try {
+        // Show user's voice message in chat
+        addVoiceMessageToChat(true);
+
+        // Create FormData and append the required fields
+        const formData = new FormData();
+        formData.append('session_id', currentSession);
+        formData.append('audio_file', audioBlob, 'voice_message.webm');
+
+        // Show loading state
+        const chat = document.getElementById("chatWindow");
+        const loadingDiv = document.createElement("div");
+        loadingDiv.id = 'loading-indicator';
+        loadingDiv.className = 'message-enter chat-bubble flex justify-start';
+        loadingDiv.innerHTML = `
+          <div class="max-w-xl bg-white border border-gray-200 rounded-2xl px-4 py-3 shadow-sm">
+            <div class="text-gray-800 flex items-center gap-2">
+              <span class="text-xl">⏳</span>
+              <span>Processing voice message...</span>
+            </div>
+          </div>
+        `;
+        chat.appendChild(loadingDiv);
+        chat.scrollTop = chat.scrollHeight;
+
+        // Send the voice message
+        const res = await fetch(`${apiBase}/sessions/send_voice_message/`, {
+          method: 'POST',
+          body: formData
+        });
+
+        // Remove loading indicator
+        const loading = document.getElementById('loading-indicator');
+        if (loading) loading.remove();
+
+        if (res.ok) {
+          // Get the audio response as blob
+          const audioResponseBlob = await res.blob();
+
+          // Add agent's voice response to chat with audio player
+          addVoiceMessageToChat(false, audioResponseBlob);
+
+          // Optionally auto-play the response
+          const audioElements = chat.querySelectorAll('audio');
+          const lastAudio = audioElements[audioElements.length - 1];
+          if (lastAudio) {
+            lastAudio.play().catch(e => console.log('Autoplay prevented:', e));
+          }
+
+        } else {
+          const error = await res.json();
+          alert(`Error: ${error.error || 'Failed to send voice message'}`);
+        }
+
+      } catch (error) {
+        console.error('Error sending voice message:', error);
+        alert('Failed to send voice message. Please try again.');
+
+        // Remove loading indicator on error
+        const loading = document.getElementById('loading-indicator');
+        if (loading) loading.remove();
+      }
+    }
+
     async function createAgent() {
       const name = document.getElementById("newAgentName").value.trim();
       const prompt = document.getElementById("newAgentPrompt").value.trim();
@@ -244,7 +392,6 @@
 
       try {
         if (editingAgentId) {
-          // Update existing agent
           await fetch(`${apiBase}/agents/${editingAgentId}/`, {
             method: "PUT",
             headers: {"Content-Type": "application/json"},
@@ -255,7 +402,6 @@
           document.getElementById("createAgentBtn").textContent = "Create Agent";
           document.getElementById("cancelEditBtn").classList.add("hidden");
         } else {
-          // Create new agent
           await fetch(`${apiBase}/agents/`, {
             method: "POST",
             headers: {"Content-Type": "application/json"},
@@ -278,8 +424,6 @@
       document.getElementById("formTitle").textContent = "Edit Agent";
       document.getElementById("createAgentBtn").textContent = "Update Agent";
       document.getElementById("cancelEditBtn").classList.remove("hidden");
-
-      // Scroll to form
       document.getElementById("newAgentName").scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
@@ -320,7 +464,6 @@
           const newSession = await res.json();
           currentSession = newSession.id;
           await fetchSessions(currentAgent.id);
-          // Clear the chat window for the new session
           document.getElementById("chatWindow").innerHTML = "";
         }
       } catch (error) {
@@ -328,9 +471,18 @@
       }
     });
 
-    // Voice button placeholder
+    // Voice button - toggle recording
     document.getElementById("voiceBtn").addEventListener("click", () => {
-      alert('Voice recording feature - to be implemented');
+      if (!currentSession) {
+        alert('Please select a chat session first');
+        return;
+      }
+
+      if (isRecording) {
+        stopRecording();
+      } else {
+        startRecording();
+      }
     });
 
     // Initial load

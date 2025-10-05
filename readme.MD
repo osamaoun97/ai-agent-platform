@@ -113,3 +113,9 @@ The project uses Django's test framework. To run tests:
 # Run all tests
 python manage.py test
 ```
+
+To get code coverage, use:
+```bash
+coverage run manage.py test
+coverage report -m
+```

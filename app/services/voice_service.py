@@ -6,6 +6,7 @@ from config.config_manager import ConfigManager
 
 config = ConfigManager()
 
+
 class VoiceService:
     def __init__(self):
         self.client = OpenAI(api_key=config.get("OPENAI_API_KEY"))
@@ -25,7 +26,7 @@ class VoiceService:
             # Open and transcribe
             with open(tmp_file_path, 'rb') as audio:
                 transcript = self.client.audio.transcriptions.create(
-                    model="whisper-1",
+                    model=config.get("STT_MODEL", "whisper-1"),
                     file=audio,
                     response_format="text"
                 )
@@ -41,8 +42,8 @@ class VoiceService:
         Returns audio bytes.
         """
         response = self.client.audio.speech.create(
-            model="tts-1",
-            voice="alloy",  # Options: alloy, echo, fable, onyx, nova, shimmer
+            model=config.get("TTS_MODEL", "tts-1"),
+            voice=config.get("TTS_VOICE", "alloy"),
             input=text,
             response_format="mp3"
         )
